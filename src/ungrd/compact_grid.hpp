@@ -19,6 +19,7 @@
 
 #include <cstddef>
 
+#include <boost/container_hash/hash.hpp>
 #include <boost/range/adaptor/map.hpp>
 
 namespace ungrd {
@@ -31,6 +32,9 @@ public:
   using Entry = TEntry;
   using CellIndex = unsigned int;
   using GridPosition = std::array<int, N>;
+
+private:
+  using GridPositionHash = boost::hash<GridPosition>;
 
 private:
   template <typename Input>
@@ -144,7 +148,7 @@ public:
 private:
   bool init_ = false;
 
-  hash_map<GridPosition, CellIndex> map_ = {};
+  hash_map<GridPosition, CellIndex, GridPositionHash> map_ = {};
   std::vector<std::vector<Entry>> cells_ = {};
   std::vector<GridPosition> new_pos_ = {};
   std::vector<GridPosition> old_pos_ = {};

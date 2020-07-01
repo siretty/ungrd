@@ -1,12 +1,12 @@
 #ifndef UNGRD_MAP_HPP_1E565FBF980E46BBA7007A105053BD2E
 #define UNGRD_MAP_HPP_1E565FBF980E46BBA7007A105053BD2E
 
-#include <absl/container/flat_hash_map.h>
+#include "phmap/phmap.h"
 
 namespace ungrd {
 
-template <typename K, typename V>
-using hash_map = absl::flat_hash_map<K, V>;
+template <typename K, typename V, typename H>
+using hash_map = phmap::flat_hash_map<K, V, H>;
 
 } // namespace ungrd
 
