@@ -3,9 +3,11 @@
 
 #include "phmap/phmap.h"
 
+#include <boost/container_hash/hash.hpp>
+
 namespace ungrd {
 
-template <typename K, typename V, typename H>
+template <typename K, typename V, typename H = boost::hash<K>>
 using hash_map = phmap::flat_hash_map<K, V, H>;
 
 } // namespace ungrd
