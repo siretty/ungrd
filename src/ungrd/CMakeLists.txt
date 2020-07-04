@@ -15,7 +15,7 @@ add_library(
 
     cxx/assert.hpp
     cxx/modulo.hpp
-    cxx/ndarray.hpp
+    cxx/lexicographic_indexing.hpp
 
     cxx/map.hpp
     cxx/set.hpp

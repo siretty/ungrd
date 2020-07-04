@@ -9,7 +9,7 @@
 using namespace ungrd;
 
 TEST(DenseGrid, Correctness) {
-  using grid_type = s32_u32_dense_grid<3>;
+  using grid_type = s32_e32_dense_grid<3>;
   using position_type = typename grid_type::space_policy::position;
   using entry_type = typename grid_type::entry_policy::entry;
 
