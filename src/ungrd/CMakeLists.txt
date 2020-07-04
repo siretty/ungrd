@@ -31,6 +31,7 @@ add_library(
     space_policy.hpp
 
     dense_grid.hpp
+    object_pool.bench.cpp
 )
 target_include_directories(
     ungrd
@@ -44,15 +45,34 @@ target_link_libraries(
 )
 set_target_properties(ungrd PROPERTIES LINKER_LANGUAGE CXX)
 
-add_executable(
-    ungrd-tests
+if (UNGRD_BUILD_TESTS)
+  add_executable(
+      ungrd-tests
 
-    cxx/modulo.tests.cpp
-    dense_grid.tests.cpp
-)
-target_link_libraries(
-    ungrd-tests
+      cxx/modulo.tests.cpp
+      dense_grid.tests.cpp
+      cxx/static_bitset.tests.cpp
+  )
+  target_link_libraries(
+      ungrd-tests
 
-    ungrd
-    ${UNGRD_GOOGLETEST_LINK_LIBRARIES}
-)
+      ungrd
+      ${UNGRD_GOOGLETEST_LINK_LIBRARIES}
+  )
+endif ()
+
+if (UNGRD_BUILD_BENCHMARKS)
+  add_executable(
+      ungrd-benchmarks
+
+      cxx/static_bitset.bench.cpp
+      object_pool.bench.cpp
+      dense_grid.bench.cpp
+  )
+  target_link_libraries(
+      ungrd-benchmarks
+
+      ungrd
+      ${UNGRD_BENCHMARK_LINK_LIBRARIES}
+  )
+endif ()

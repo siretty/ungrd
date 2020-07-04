@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(ungrd C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
@@ -9,6 +9,11 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
+)
+
+FetchContent_Declare(
+    benchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
 )
 
 option(UNGRD_BUILD_TESTS "Build the tests" ON)
@@ -27,6 +32,17 @@ if (UNGRD_BUILD_TESTS)
     find_package(GTest)
     set(UNGRD_GOOGLETEST_LINK_LIBRARIES GTest::gtest GTest::gtest_main)
   endif ()
+endif ()
+
+option(UNGRD_BUILD_BENCHMARKS "Build the benchmarks" ON)
+option(UNGRD_FETCH_BENCHARK "Fetch the benchmark library automatically" ON)
+if (UNGRD_BUILD_BENCHMARKS)
+  if (UNGRD_FETCH_BENCHMARK)
+    FetchContent_MakeAvailable(benchmark)
+  else ()
+    find_package(benchmark)
+  endif ()
+  set(UNGRD_BENCHMARK_LINK_LIBRARIES benchmark::benchmark benchmark::benchmark_main)
 endif ()
 
 add_subdirectory(src)

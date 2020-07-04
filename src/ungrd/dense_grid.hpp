@@ -5,6 +5,7 @@
 #include "cxx/map.hpp"
 
 #include "entry_policy.hpp"
+#include "object_pool.hpp"
 #include "space_policy.hpp"
 
 #include <algorithm>
@@ -31,26 +32,50 @@ private:
 
   using indexing_type = lexicographic_indexing<ndim>;
 
+  using entry_vector = std::vector<entry_type>;
+  using entry_vector_pool = object_pool<entry_vector>;
+  // using entry_vector_pool = new_delete_object_pool<entry_vector>;
+
 private:
   using cidx_type = std::size_t;
 
   class cell_type {
-  public:
-    bool empty() const { return entries_.empty(); }
-
-    auto const &entries() const { return entries_; }
+    using entry_vector_ptr = typename entry_vector_pool::acquire_unique_ptr;
 
   public:
+    bool empty() const { return (not entries_) or entries_->empty(); }
+
+    auto const &entries() const { return *entries_; }
+
     void add_entry(entry_type entry) {
       using std::begin, std::end;
-      auto it = std::find(begin(entries_), end(entries_), entry);
-      if (it == end(entries_))
-        entries_.emplace_back(entry);
+      auto it = std::find(begin(*entries_), end(*entries_), entry);
+      if (it == end(*entries_))
+        entries_->emplace_back(entry);
+    }
+
+    friend void swap(cell_type &a, cell_type &b) {
+      using std::swap;
+      swap(a.entries_, b.entries_);
+    }
+
+  public:
+    cell_type() = default;
+
+    cell_type(entry_vector_pool &pool) : entries_{pool.acquire_unique()} {
+      entries_->clear();
     }
 
   private:
-    std::vector<entry_type> entries_;
+    entry_vector_ptr entries_ = {};
   };
+
+public:
+  size_t count_filled_cells() const {
+    size_t count = 0;
+    foreach_position([&count](auto &cell) { count += not cell.empty(); });
+    return count;
+  }
 
 public:
   template <typename FCallback>
@@ -67,8 +92,10 @@ public:
     }
 
     auto const cidx = indexing_.encode(indices);
-    for (auto const entry : cidx_to_cell_[cidx].entries())
-      callback(entry);
+    auto const &cell = cidx_to_cell_[cidx];
+    if (not cell.empty())
+      for (auto const entry : cidx_to_cell_[cidx].entries())
+        callback(entry);
   }
 
   template <typename FCallback>
@@ -76,9 +103,11 @@ public:
     for (size_t cidx = 0; cidx < cidx_to_cell_.size(); ++cidx) {
       if (not cidx_to_cell_[cidx].empty()) {
         auto const indices = indexing_.decode(cidx);
+
         position_type cpos;
         for (size_t dim = 0; dim < ndim; ++dim)
           cpos[dim] = indices[dim] - offsets_[dim];
+
         callback(cpos);
       }
     }
@@ -90,10 +119,13 @@ public:
     position_type lo = space_policy::most_positive_position();
     position_type hi = space_policy::most_negative_position();
 
-    hash_map<position_type, cell_type, position_hash> map;
+    auto &map = update_map_;
+    map.clear();
 
     for (auto const [entry, cpos] : input) {
-      map[cpos].add_entry(entry);
+      auto [it, _] = map.try_emplace(cpos, entry_vector_pool_);
+      auto &cell = it->second;
+      cell.add_entry(entry);
       for (size_t dim = 0; dim < ndim; ++dim) {
         lo[dim] = std::min(lo[dim], cpos[dim]);
         hi[dim] = std::max(hi[dim], cpos[dim]);
@@ -112,13 +144,16 @@ public:
       indexing_ = indexing_type{extents};
 
       cidx_to_cell_.resize(indexing_.size());
+
       for (auto &[cpos, cell] : map) {
         std::array<size_t, ndim> indices;
         for (size_t dim = 0; dim < ndim; ++dim)
           indices[dim] = cpos[dim] + offsets_[dim];
 
         auto const cidx = indexing_.encode(indices);
-        cidx_to_cell_[cidx] = std::move(cell);
+
+        using std::swap;
+        swap(cidx_to_cell_[cidx], cell);
       }
     }
   }
@@ -133,7 +168,12 @@ public:
 private:
   position_type offsets_;
   indexing_type indexing_;
+
+  // must be dtored after cidx_to_cell_ and update_map_
+  entry_vector_pool entry_vector_pool_;
+
   std::vector<cell_type> cidx_to_cell_;
+  hash_map<position_type, cell_type, position_hash> update_map_;
 };
 
 template <size_t NDim>
