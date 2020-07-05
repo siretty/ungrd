@@ -11,6 +11,9 @@
 #include "cxx/assert.hpp"
 #include "cxx/map.hpp"
 #include "cxx/set.hpp"
+#include "entry_policy.hpp"
+#include "object_pool.hpp"
+#include "space_policy.hpp"
 
 #include <algorithm>
 #include <array>
@@ -24,42 +27,110 @@
 
 namespace ungrd {
 
-template <typename TEntry, size_t N>
-class CompactGrid {
-  static_assert(1 <= N and N <= 3);
-
+template <typename PSpace, typename PEntry>
+class compact_grid {
 public:
-  using Entry = TEntry;
-  using CellIndex = unsigned int;
-  using GridPosition = std::array<int, N>;
+  using space_policy = PSpace;
+  using entry_policy = PEntry;
 
 private:
-  using GridPositionHash = boost::hash<GridPosition>;
+  static constexpr std::size_t ndim = space_policy::ndim;
+  using position_type = typename space_policy::position;
+  using position_hash = boost::hash<position_type>;
+
+  using entry_type = typename entry_policy::entry;
+
+  using entry_vector = std::vector<entry_type>;
+
+private:
+  using cidx_type = std::size_t;
+
+  class cell_type {
+  public:
+    bool empty() const { return entries_.empty(); }
+
+    auto const &entries() const { return entries_; }
+
+    void reserve_entries(size_t count) { entries_.reserve(count); }
+
+    void add_entry(entry_type entry) {
+      using std::begin, std::end;
+      auto it = std::find(begin(entries_), end(entries_), entry);
+      if (it == end(entries_))
+        entries_.emplace_back(entry);
+    }
+
+    void erase_entry(entry_type entry) {
+      using std::begin, std::end;
+      auto it = std::find(begin(entries_), end(entries_), entry);
+      if (it == end(entries_))
+        entries_.erase(it);
+    }
+
+    friend void swap(cell_type &a, cell_type &b) {
+      using std::swap;
+      swap(a.entries_, b.entries_);
+    }
+
+  public:
+    cell_type() = default;
+
+  private:
+    entry_vector entries_ = {};
+  };
+
+public:
+  size_t count_filled_cells() const {
+    size_t count = 0;
+    for (auto const &cell : cells_)
+      count += not cell.empty();
+    return count;
+  }
+
+public:
+  template <typename FCallback>
+  void foreach_entry_at_position(
+      position_type const &cpos, FCallback callback) const {
+    auto it = map_.find(cpos);
+
+    if (it != map_.end())
+      for (auto const entry : cells_[it->second].entries())
+        callback(entry);
+  }
+
+  template <typename FCallback>
+  void foreach_position(FCallback callback) const {
+    for (auto const &[cpos, cidx] : map_) {
+      auto const &cell = cells_[cidx];
+      if (not cell.empty())
+        callback(cpos);
+    }
+  }
 
 private:
   template <typename Input>
   void LazyInit(Input const &input) {
     if (not init_) {
-      size_t const entry_count = input.GetEntryCount();
+      using std::size;
+      size_t const entry_count = size(input);
 
       cells_.clear();
       map_.clear();
       old_pos_.resize(entry_count);
       new_pos_.resize(entry_count);
 
-      std::vector<GridPosition> tmp_pos;
+      std::vector<position_type> tmp_pos;
 
-      for (Entry entry = 0; entry < entry_count; ++entry) {
-        GridPosition const pos = input.GetEntryPosition(entry);
+      for (auto const &[entry, pos] : input) {
         old_pos_[entry] = new_pos_[entry] = pos;
 
         if (auto it = map_.find(pos); it != map_.end()) {
-          auto &cell_data = cells_[it->second];
-          cell_data.emplace_back(entry);
+          auto &cell = cells_[it->second];
+          cell.add_entry(entry);
         } else {
-          auto &cell_data = cells_.emplace_back();
-          cell_data.reserve(50);
-          cell_data.emplace_back(entry);
+          auto &cell = cells_.emplace_back();
+          cell.reserve_entries(50);
+          cell.add_entry(entry);
           tmp_pos.emplace_back(pos);
           map_[pos] = cells_.size() - 1;
         }
@@ -75,11 +146,12 @@ private:
   }
 
 public:
-  template <typename Input>
-  void Update(Input const &input) {
+  template <typename TInput>
+  void update(TInput const &input) {
     LazyInit(input);
 
-    size_t const entry_count = input.GetEntryCount();
+    using std::size;
+    size_t const entry_count = size(input);
 
     // update_point_sets
 
@@ -90,73 +162,61 @@ public:
       new_pos_.resize(entry_count);
     }
 
-    for (Entry entry = 0; entry < entry_count; ++entry) {
-      new_pos_[entry] = input.GetEntryPosition(entry);
+    for (auto const [entry, cpos] : input) {
+      new_pos_[entry] = cpos;
     }
 
     // update_hash_table
 
-    for (Entry entry = 0; entry < entry_count; ++entry) {
+    for (size_t entry = 0; entry < entry_count; ++entry) {
       if (new_pos_[entry] == old_pos_[entry])
         continue;
 
       auto const &pos = new_pos_[entry];
 
       if (auto it = map_.find(pos); it != map_.end()) {
-        auto &cell_data = cells_[it->second];
-        cell_data.push_back(entry);
+        auto &cell = cells_[it->second];
+        cell.add_entry(it->second);
       } else {
-        auto &cell_data = cells_.emplace_back();
-        cell_data.reserve(50);
-        cell_data.emplace_back(entry);
+        auto &cell = cells_.emplace_back();
+        cell.reserve_entries(50);
+        cell.add_entry(entry);
         map_.emplace(pos, cells_.size() - 1);
       }
 
       {
-        auto &cell_data = cells_[map_[old_pos_[entry]]];
-        auto it = std::find(cell_data.begin(), cell_data.end(), entry);
-        if (it != cell_data.end())
-          cell_data.erase(it);
+        auto &cell = cells_[map_[old_pos_[entry]]];
+        cell.erase_entry(entry);
       }
     }
   }
 
-  template <typename OutputIt>
-  void CopyCellEntries(GridPosition const &pos, OutputIt output) const {
-    if (auto it = map_.find(pos); it != map_.end()) {
-      auto const cidx = it->second;
-      auto const &cell_data = cells_[cidx];
-      for (auto const entry : cell_data)
-        *(output++) = entry;
-    }
-  }
-
 public:
-  auto KnownCells() const { return map_ | boost::adaptors::map_keys; }
-
-public:
-  CompactGrid() {
+  compact_grid() {
     cells_.emplace_back();
     map_[invalid_pos] = 0;
   }
 
-  CompactGrid(CompactGrid const &) = delete;
-  CompactGrid &operator=(CompactGrid const &) = delete;
-  CompactGrid(CompactGrid &&) = default;
-  CompactGrid &operator=(CompactGrid &&) = default;
+  compact_grid(compact_grid const &) = delete;
+  compact_grid &operator=(compact_grid const &) = delete;
+  compact_grid(compact_grid &&) = default;
+  compact_grid &operator=(compact_grid &&) = default;
 
 private:
   bool init_ = false;
 
-  hash_map<GridPosition, CellIndex, GridPositionHash> map_ = {};
-  std::vector<std::vector<Entry>> cells_ = {};
-  std::vector<GridPosition> new_pos_ = {};
-  std::vector<GridPosition> old_pos_ = {};
+  hash_map<position_type, cidx_type, position_hash> map_ = {};
+  std::vector<cell_type> cells_ = {};
+  std::vector<position_type> new_pos_ = {};
+  std::vector<position_type> old_pos_ = {};
 
-  static constexpr GridPosition invalid_pos = {
-      std::numeric_limits<int>::max(), std::numeric_limits<int>::max(),
-      std::numeric_limits<int>::max()};
+  static constexpr position_type invalid_pos =
+      space_policy::most_positive_position();
 };
+
+template <size_t NDim>
+using s32_e32_compact_grid =
+    compact_grid<s32_space_policy<NDim>, u32_entry_policy>;
 
 } // namespace ungrd
 

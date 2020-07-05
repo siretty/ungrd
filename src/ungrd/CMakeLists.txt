@@ -31,7 +31,7 @@ add_library(
     space_policy.hpp
 
     dense_grid.hpp
-    object_pool.bench.cpp
+    compact_grid.hpp
 )
 target_include_directories(
     ungrd
@@ -50,9 +50,12 @@ if (UNGRD_BUILD_TESTS)
       ungrd-tests
 
       cxx/modulo.tests.cpp
-      dense_grid.tests.cpp
       cxx/static_bitset.tests.cpp
-  )
+
+      grid.tests.hpp
+      dense_grid.tests.cpp
+      compact_grid.tests.cpp
+      compact_grid.tests.cpp)
   target_link_libraries(
       ungrd-tests
 
@@ -67,7 +70,10 @@ if (UNGRD_BUILD_BENCHMARKS)
 
       cxx/static_bitset.bench.cpp
       object_pool.bench.cpp
+
+      grid.bench.hpp
       dense_grid.bench.cpp
+      compact_grid.bench.cpp
   )
   target_link_libraries(
       ungrd-benchmarks

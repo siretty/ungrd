@@ -47,6 +47,8 @@ private:
 
     auto const &entries() const { return *entries_; }
 
+    void reserve_entries(size_t count) { entries_->reserve(count); }
+
     void add_entry(entry_type entry) {
       using std::begin, std::end;
       auto it = std::find(begin(*entries_), end(*entries_), entry);
@@ -73,7 +75,9 @@ private:
 public:
   size_t count_filled_cells() const {
     size_t count = 0;
-    foreach_position([&count](auto &cell) { count += not cell.empty(); });
+    for (auto const &cell : cidx_to_cell_) {
+      count += not cell.empty();
+    }
     return count;
   }
 
@@ -123,8 +127,10 @@ public:
     map.clear();
 
     for (auto const [entry, cpos] : input) {
-      auto [it, _] = map.try_emplace(cpos, entry_vector_pool_);
+      auto [it, inserted] = map.try_emplace(cpos, entry_vector_pool_);
       auto &cell = it->second;
+      if (inserted)
+        cell.reserve_entries(50);
       cell.add_entry(entry);
       for (size_t dim = 0; dim < ndim; ++dim) {
         lo[dim] = std::min(lo[dim], cpos[dim]);
