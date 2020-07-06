@@ -24,7 +24,7 @@ auto &Grid_DenseCells_Input(benchmark::State &state) {
   using entry_type = typename Grid::entry_policy::entry;
   using position_type = typename Grid::space_policy::position;
 
-  static std::vector<std::pair<entry_type, position_type>> input;
+  static std::vector<std::pair<position_type, entry_type>> input;
   input.clear();
 
   for (size_t cidx = 0; cidx < indexing.size(); ++cidx) {
@@ -35,7 +35,7 @@ auto &Grid_DenseCells_Input(benchmark::State &state) {
       cpos[dim] = nidx[dim] - 4;
 
     for (size_t cpos_i = 0; cpos_i < cpos_per_cell; ++cpos_i)
-      input.emplace_back(input.size(), cpos);
+      input.emplace_back(cpos, input.size());
   }
 
   return input;
@@ -61,7 +61,7 @@ auto &Grid_RandomCells_Input(benchmark::State &state) {
   using entry_type = typename Grid::entry_policy::entry;
   using position_type = typename Grid::space_policy::position;
 
-  static std::vector<std::pair<entry_type, position_type>> input;
+  static std::vector<std::pair<position_type, entry_type>> input;
   input.clear();
 
   for (size_t cpos_i = 0; cpos_i < cpos_count; ++cpos_i) {
@@ -73,7 +73,7 @@ auto &Grid_RandomCells_Input(benchmark::State &state) {
     for (size_t dim = 0; dim < ndim; ++dim)
       cpos[dim] = nidx[dim] - 4;
 
-    input.emplace_back(input.size(), cpos);
+    input.emplace_back(cpos, input.size());
   }
 
   return input;
@@ -116,7 +116,7 @@ void BMT_Grid_AllMoveOneUpdate(benchmark::State &state, Input &input) {
   constexpr size_t ndim = Grid::space_policy::ndim;
 
   for (auto _ : state) {
-    for (auto &[entry, cpos] : input)
+    for (auto &[cpos, entry] : input)
       for (size_t dim = 0; dim < ndim; ++dim)
         ++cpos[dim];
 
@@ -142,7 +142,7 @@ void BMT_Grid_SomeMoveOneUpdate(benchmark::State &state, Input &input) {
   double move_prob = static_cast<double>(input.size()) / move_count;
 
   for (auto _ : state) {
-    for (auto &[entry, cpos] : input) {
+    for (auto &[cpos, entry] : input) {
       if (dis(gen) <= move_prob)
         for (size_t dim = 0; dim < ndim; ++dim)
           ++cpos[dim];

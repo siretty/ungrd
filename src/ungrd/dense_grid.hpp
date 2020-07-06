@@ -120,7 +120,7 @@ public:
     auto &map = update_map_;
     map.clear();
 
-    for (auto const [entry, cpos] : input) {
+    for (auto const [cpos, entry] : input) {
       auto [it, inserted] = map.try_emplace(cpos);
       auto &cell = it->second;
       if (inserted)

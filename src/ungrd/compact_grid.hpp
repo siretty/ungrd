@@ -107,45 +107,42 @@ public:
     }
   }
 
-private:
-  template <typename Input>
-  void LazyInit(Input const &input) {
-    if (not init_) {
-      using std::size;
-      size_t const entry_count = size(input);
+public:
+  template <typename TInput>
+  void update(TInput const &input) {
+    using std::size;
+    size_t const entry_count = size(input);
 
-      cells_.clear();
-      map_.clear();
-      old_pos_.resize(entry_count);
-      new_pos_.resize(entry_count);
+    cells_.clear();
+    map_.clear();
+    old_pos_.resize(entry_count);
+    new_pos_.resize(entry_count);
 
-      std::vector<position_type> tmp_pos;
+    std::vector<position_type> tmp_pos;
 
-      for (auto const &[entry, pos] : input) {
-        old_pos_[entry] = new_pos_[entry] = pos;
+    for (auto const &[pos, entry] : input) {
+      old_pos_[entry] = new_pos_[entry] = pos;
 
-        if (auto it = map_.find(pos); it != map_.end()) {
-          auto &cell = cells_[it->second];
-          cell.add_entry(entry);
-        } else {
-          auto &cell = cells_.emplace_back();
-          cell.reserve_entries(50);
-          cell.add_entry(entry);
-          tmp_pos.emplace_back(pos);
-          map_[pos] = cells_.size() - 1;
-        }
-      }
-
-      map_.clear();
-      for (size_t cell_index = 0; cell_index < cells_.size(); ++cell_index) {
-        map_.emplace(tmp_pos[cell_index], cell_index);
+      if (auto it = map_.find(pos); it != map_.end()) {
+        auto &cell = cells_[it->second];
+        cell.add_entry(entry);
+      } else {
+        auto &cell = cells_.emplace_back();
+        cell.reserve_entries(50);
+        cell.add_entry(entry);
+        tmp_pos.emplace_back(pos);
+        map_[pos] = cells_.size() - 1;
       }
     }
 
-    init_ = true;
+    map_.clear();
+    for (size_t cell_index = 0; cell_index < cells_.size(); ++cell_index) {
+      map_.emplace(tmp_pos[cell_index], cell_index);
+    }
   }
 
 public:
+  /*
   template <typename TInput>
   void update(TInput const &input) {
     LazyInit(input);
@@ -190,6 +187,7 @@ public:
       }
     }
   }
+  */
 
 public:
   compact_grid() {

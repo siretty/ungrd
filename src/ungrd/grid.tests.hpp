@@ -17,7 +17,7 @@ void T_Grid_Correctness() {
 
   grid_type grid;
 
-  std::vector<std::pair<entry_type, position_type>> input = {
+  std::vector<std::pair<position_type, entry_type>> input = {
       {5, {-1, -2, -3}}, {2, {3, 2, 1}}, {1, {-1, -2, -3}},
       {3, {3, 2, 1}},    {4, {1, 1, 1}}, {0, {1, 1, 2}},
   };
