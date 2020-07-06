@@ -33,27 +33,25 @@ private:
   using indexing_type = lexicographic_indexing<ndim>;
 
   using entry_vector = std::vector<entry_type>;
-  using entry_vector_pool = object_pool<entry_vector>;
+  // using entry_vector_pool = object_pool<entry_vector>;
   // using entry_vector_pool = new_delete_object_pool<entry_vector>;
 
 private:
   using cidx_type = std::size_t;
 
   class cell_type {
-    using entry_vector_ptr = typename entry_vector_pool::acquire_unique_ptr;
-
   public:
-    bool empty() const { return (not entries_) or entries_->empty(); }
+    bool empty() const { return entries_.empty(); }
 
-    auto const &entries() const { return *entries_; }
+    auto const &entries() const { return entries_; }
 
-    void reserve_entries(size_t count) { entries_->reserve(count); }
+    void reserve_entries(size_t count) { entries_.reserve(count); }
 
     void add_entry(entry_type entry) {
       using std::begin, std::end;
-      auto it = std::find(begin(*entries_), end(*entries_), entry);
-      if (it == end(*entries_))
-        entries_->emplace_back(entry);
+      auto it = std::find(begin(entries_), end(entries_), entry);
+      if (it == end(entries_))
+        entries_.emplace_back(entry);
     }
 
     friend void swap(cell_type &a, cell_type &b) {
@@ -64,12 +62,8 @@ private:
   public:
     cell_type() = default;
 
-    cell_type(entry_vector_pool &pool) : entries_{pool.acquire_unique()} {
-      entries_->clear();
-    }
-
   private:
-    entry_vector_ptr entries_ = {};
+    entry_vector entries_ = {};
   };
 
 public:
@@ -127,7 +121,7 @@ public:
     map.clear();
 
     for (auto const [entry, cpos] : input) {
-      auto [it, inserted] = map.try_emplace(cpos, entry_vector_pool_);
+      auto [it, inserted] = map.try_emplace(cpos);
       auto &cell = it->second;
       if (inserted)
         cell.reserve_entries(50);
@@ -174,9 +168,6 @@ public:
 private:
   position_type offsets_;
   indexing_type indexing_;
-
-  // must be dtored after cidx_to_cell_ and update_map_
-  entry_vector_pool entry_vector_pool_;
 
   std::vector<cell_type> cidx_to_cell_;
   hash_map<position_type, cell_type, position_hash> update_map_;

@@ -107,6 +107,54 @@ void BMT_Grid_NoChangeUpdate(benchmark::State &state, Input const &input) {
 }
 
 template <typename Grid, typename Input>
+void BMT_Grid_AllMoveOneUpdate(benchmark::State &state, Input &input) {
+  state.counters["ne"] = input.size();
+
+  Grid grid;
+  grid.update(input);
+
+  constexpr size_t ndim = Grid::space_policy::ndim;
+
+  for (auto _ : state) {
+    for (auto &[entry, cpos] : input)
+      for (size_t dim = 0; dim < ndim; ++dim)
+        ++cpos[dim];
+
+    grid.update(input);
+  }
+
+  state.counters["nfc"] = grid.count_filled_cells();
+}
+
+template <typename Grid, typename Input>
+void BMT_Grid_SomeMoveOneUpdate(benchmark::State &state, Input &input) {
+  state.counters["ne"] = input.size();
+
+  std::mt19937 gen{1};
+  std::uniform_real_distribution<double> dis{0., 1.};
+
+  Grid grid;
+  grid.update(input);
+
+  constexpr size_t ndim = Grid::space_policy::ndim;
+
+  auto const move_count = state.range(ndim + 1);
+  double move_prob = static_cast<double>(input.size()) / move_count;
+
+  for (auto _ : state) {
+    for (auto &[entry, cpos] : input) {
+      if (dis(gen) <= move_prob)
+        for (size_t dim = 0; dim < ndim; ++dim)
+          ++cpos[dim];
+    }
+
+    grid.update(input);
+  }
+
+  state.counters["nfc"] = grid.count_filled_cells();
+}
+
+template <typename Grid, typename Input>
 void BMT_Grid_CountAllEntries(benchmark::State &state, Input const &input) {
   state.counters["ne"] = input.size();
 
@@ -151,6 +199,34 @@ template <typename Grid>
 void BMT_Grid_NoChangeUpdate_RandomCells(benchmark::State &state) {
   auto const &input = Grid_RandomCells_Input<Grid>(state);
   BMT_Grid_NoChangeUpdate<Grid>(state, input);
+}
+
+// AllMoveOneUpdate
+
+template <typename Grid>
+void BMT_Grid_AllMoveOneUpdate_DenseCells(benchmark::State &state) {
+  auto &input = Grid_DenseCells_Input<Grid>(state);
+  BMT_Grid_AllMoveOneUpdate<Grid>(state, input);
+}
+
+template <typename Grid>
+void BMT_Grid_AllMoveOneUpdate_RandomCells(benchmark::State &state) {
+  auto &input = Grid_RandomCells_Input<Grid>(state);
+  BMT_Grid_AllMoveOneUpdate<Grid>(state, input);
+}
+
+// SomeMoveOneUpdate
+
+template <typename Grid>
+void BMT_Grid_SomeMoveOneUpdate_DenseCells(benchmark::State &state) {
+  auto &input = Grid_DenseCells_Input<Grid>(state);
+  BMT_Grid_SomeMoveOneUpdate<Grid>(state, input);
+}
+
+template <typename Grid>
+void BMT_Grid_SomeMoveOneUpdate_RandomCells(benchmark::State &state) {
+  auto &input = Grid_RandomCells_Input<Grid>(state);
+  BMT_Grid_SomeMoveOneUpdate<Grid>(state, input);
 }
 
 // CountAllEntries

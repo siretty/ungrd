@@ -63,7 +63,7 @@ private:
     void erase_entry(entry_type entry) {
       using std::begin, std::end;
       auto it = std::find(begin(entries_), end(entries_), entry);
-      if (it == end(entries_))
+      if (it != end(entries_))
         entries_.erase(it);
     }
 
