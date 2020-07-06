@@ -17,12 +17,24 @@ public:
   using ndidx_type = std::array<size_t, ndim>;
 
 public:
-  constexpr index_type encode(ndidx_type ndidx) const {
+  constexpr index_type encode(ndidx_type const ndidx) const {
     index_type index = 0;
     for (size_t dim = 0; dim < ndim; ++dim)
       index += ndidx[dim] * strides_[dim];
     return index;
   }
+
+  constexpr std::optional<index_type> try_encode(ndidx_type const ndidx) const {
+    index_type index = 0;
+    for (size_t dim = 0; dim < ndim; ++dim) {
+      if (ndidx[dim] >= extents_[dim])
+        return std::nullopt;
+      index += ndidx[dim] * strides_[dim];
+    }
+    return index;
+  }
+
+  // TODO: rename encode -> raw_encode, try_encode -> encode
 
   constexpr ndidx_type decode(index_type index) const {
     ndidx_type ndidx;
@@ -36,10 +48,12 @@ public:
     return ndidx;
   }
 
+  // TODO: rename decode -> raw_decode, ...
+
 public:
   constexpr auto const extents() const { return extents_; }
 
-  constexpr size_t extent(size_t dim) const { return extents_[dim]; }
+  constexpr size_t extent(size_t const dim) const { return extents_[dim]; }
 
   constexpr size_t const size() const { return size_; }
 

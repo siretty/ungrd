@@ -91,9 +91,7 @@ public:
   template <typename FCallback>
   void foreach_entry_at_position(
       position_type const &cpos, FCallback callback) const {
-    auto it = map_.find(cpos);
-
-    if (it != map_.end())
+    if (auto it = map_.find(cpos); it != map_.end())
       for (auto const entry : cells_[it->second].entries())
         callback(entry);
   }
@@ -115,79 +113,33 @@ public:
 
     cells_.clear();
     map_.clear();
-    old_pos_.resize(entry_count);
-    new_pos_.resize(entry_count);
 
-    std::vector<position_type> tmp_pos;
+    std::array<std::pair<position_type, entry_type>, 0> dummy_stale;
+    differential_update(input, dummy_stale);
 
-    for (auto const &[pos, entry] : input) {
-      old_pos_[entry] = new_pos_[entry] = pos;
-
-      if (auto it = map_.find(pos); it != map_.end()) {
-        auto &cell = cells_[it->second];
-        cell.add_entry(entry);
-      } else {
-        auto &cell = cells_.emplace_back();
-        cell.reserve_entries(50);
-        cell.add_entry(entry);
-        tmp_pos.emplace_back(pos);
-        map_[pos] = cells_.size() - 1;
-      }
-    }
-
-    map_.clear();
-    for (size_t cell_index = 0; cell_index < cells_.size(); ++cell_index) {
-      map_.emplace(tmp_pos[cell_index], cell_index);
-    }
+    // think about calling map_.rehash(0);
   }
 
 public:
-  /*
-  template <typename TInput>
-  void update(TInput const &input) {
-    LazyInit(input);
-
-    using std::size;
-    size_t const entry_count = size(input);
-
-    // update_point_sets
-
-    std::swap(old_pos_, new_pos_);
-
-    if (old_pos_.size() != entry_count) {
-      old_pos_.resize(entry_count, invalid_pos);
-      new_pos_.resize(entry_count);
-    }
-
-    for (auto const [entry, cpos] : input) {
-      new_pos_[entry] = cpos;
-    }
-
-    // update_hash_table
-
-    for (size_t entry = 0; entry < entry_count; ++entry) {
-      if (new_pos_[entry] == old_pos_[entry])
-        continue;
-
-      auto const &pos = new_pos_[entry];
-
-      if (auto it = map_.find(pos); it != map_.end()) {
+  template <typename TFresh, typename TStale>
+  void differential_update(TFresh const &fresh, TStale const &stale) {
+    for (auto const &[cpos, entry] : fresh) {
+      if (auto it = map_.find(cpos); it != map_.end()) {
         auto &cell = cells_[it->second];
-        cell.add_entry(it->second);
+        cell.add_entry(entry);
       } else {
         auto &cell = cells_.emplace_back();
         cell.reserve_entries(50);
         cell.add_entry(entry);
-        map_.emplace(pos, cells_.size() - 1);
-      }
-
-      {
-        auto &cell = cells_[map_[old_pos_[entry]]];
-        cell.erase_entry(entry);
+        map_[cpos] = cells_.size() - 1;
       }
     }
+
+    for (auto const &[cpos, entry] : stale) {
+      if (auto it = map_.find(cpos); it != map_.end())
+        cells_[it->second].erase_entry(entry);
+    }
   }
-  */
 
 public:
   compact_grid() {
@@ -205,8 +157,6 @@ private:
 
   hash_map<position_type, cidx_type, position_hash> map_ = {};
   std::vector<cell_type> cells_ = {};
-  std::vector<position_type> new_pos_ = {};
-  std::vector<position_type> old_pos_ = {};
 
   static constexpr position_type invalid_pos =
       space_policy::most_positive_position();
