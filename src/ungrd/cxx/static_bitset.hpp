@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <concepts>
 #include <iterator>
 #include <limits>
 
@@ -11,9 +12,9 @@
 
 namespace ungrd {
 
-template <size_t NBits>
+template <size_t NBits, std::unsigned_integral TChunk = size_t>
 class static_bitset {
-  using chunk_type = size_t;
+  using chunk_type = TChunk;
 
   static constexpr size_t chunk_bits = sizeof(chunk_type) * 8;
   static constexpr size_t chunk_count = (NBits / chunk_bits) + 1;
@@ -61,7 +62,7 @@ public:
 
   constexpr bool any() const {
     bool full_chunks =
-        std::all_of(chunks_.begin(), std::prev(chunks_.end()), [](auto &chunk) {
+        std::any_of(chunks_.begin(), std::prev(chunks_.end()), [](auto &chunk) {
           return chunk != 0;
         });
 

@@ -8,7 +8,7 @@ TEST(StaticBitset, Correctness) {
   ASSERT_LE(16, sizeof(ungrd::static_bitset<128>));
   ASSERT_LT(16, sizeof(ungrd::static_bitset<129>));
 
-  ungrd::static_bitset<65> bits;
+  ungrd::static_bitset<65, unsigned> bits;
   ASSERT_EQ(65, bits.size());
 
   bits.set_all();
