@@ -2,6 +2,7 @@
 find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED COMPONENTS container)
 
+
 # copy the parallel hashmap into our source tree
 file(
     CREATE_LINK
@@ -10,8 +11,13 @@ file(
     COPY_ON_ERROR SYMBOLIC
 )
 
+
 add_library(
-    ungrd
+    ungrd INTERFACE
+)
+
+target_sources(
+    ungrd INTERFACE
 
     cxx/assert.hpp
     cxx/modulo.hpp
@@ -22,8 +28,6 @@ add_library(
 
     compact_grid.hpp
     compact_multi_grid.hpp
-
-    uniform_grid.cpp uniform_grid.hpp
 
     cell_policy.hpp
 
@@ -36,14 +40,14 @@ add_library(
 target_include_directories(
     ungrd
 
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..
+    INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 target_link_libraries(
     ungrd
 
-    PUBLIC OpenMP::OpenMP_CXX Boost::container
+    INTERFACE OpenMP::OpenMP_CXX Boost::container
 )
-set_target_properties(ungrd PROPERTIES LINKER_LANGUAGE CXX)
+
 
 if (UNGRD_BUILD_TESTS)
   add_executable(
