@@ -57,11 +57,11 @@ public:
       return false;
 
     auto const last_chunk = chunks_.back();
-    return (last_chunk & last_chunk_mask) == (chunk_all_set & last_chunk_mask);
+    return (last_chunk & last_chunk_mask) == last_chunk_mask;
   }
 
   constexpr bool any() const {
-    bool full_chunks =
+    bool const full_chunks =
         std::any_of(chunks_.begin(), std::prev(chunks_.end()), [](auto &chunk) {
           return chunk != 0;
         });
@@ -84,7 +84,8 @@ public:
     std::for_each(
         chunks_.begin(), std::prev(chunks_.end()),
         [&count](auto const chunk) { count += std::popcount(chunk); });
-    count += std::popcount(chunks_.back() & last_chunk_mask);
+    auto const masked_chunk = chunks_.back() & last_chunk_mask;
+    count += std::popcount(static_cast<std::uintmax_t>(masked_chunk));
     return count;
   }
 

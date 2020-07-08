@@ -29,7 +29,7 @@ GENERATE_BENCHMARKS(BM_StdBitset_Any_OneBitSet)
 
 template <size_t NBits>
 static void BM_StaticBitset_Any_OneBitSet(benchmark::State &state) {
-  ungrd::static_bitset<NBits> bits;
+  ungrd::static_bitset<NBits, unsigned int> bits;
 
   bits.set(state.range(0) - 1);
 
@@ -57,7 +57,7 @@ GENERATE_BENCHMARKS(BM_StdBitset_SetAndGet)
 
 template <size_t NBits>
 static void BM_StaticBitset_SetAndGet(benchmark::State &state) {
-  ungrd::static_bitset<NBits> bits;
+  ungrd::static_bitset<NBits, unsigned int> bits;
 
   for (auto _ : state) {
     for (size_t index = 0; index < state.range(0); ++index) {
